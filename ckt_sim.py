@@ -37,12 +37,13 @@ class Wire():
         
         self.val = val
         self.valchange = True
+        print self.val
         
     def __str__(self):
         if not self.val:
             return self.name
         else:
-            return "%s (%s)" % (self.name, self.val)
+            return "%s (%s)" % (self.name, str(self.val))
     
 class Component:
     # Components take input Wires, do some atomic calculation,
@@ -51,6 +52,16 @@ class Component:
     # calculate from input values, then drive() to 
     # place the result on output Wires.
     
+    class Wait():
+        def __init__(self, num):
+            self.num = num
+            
+        def step(self):
+            self.num = self.num - 1
+            if self.num == 0:
+                return None
+            return self
+            
     def __init__(self, prep_func):
         self._prep = self._prepare_prep_func(prep_func)
         self._prep_is_generator = (type(self._prep) == types.GeneratorType)
@@ -68,45 +79,58 @@ class Component:
                 return generator
         
         return prep_func
+    
+    def waiting(self):
+        return isinstance(self.next, self.Wait)
+    
+    def _wait(self):
+        if not self.waiting():
+            raise Exception("Call to _wait() on non-waiting circuit")
+        self.next = self.next.step()
+    
+    def _mapValues(self, args):
+        # Read values from inputs. This supports
+        # data structures of arbitrary depth.
+        
+        if isinstance(args, Wire):
+            return args.val
+        elif type(args) is list:
+            return [self._mapValues(v) for v in args]
+        elif type(args) is dict:
+            return {k: self._mapValues(v) for k, v in args.items()}
+        else:
+            raise Exception("Weird type " + str(type(args)) + " in _getValues()")
         
     def read(self, *args):
-        # Read values from inputs. Note this 
-        # is a shallow mapping operation, so
-        # nested wires are a no-no.
-        
-        ivals = {}
+        # No args? Just read all inputs.
         if len(args) == 0:
-            for i in self.cin:
-                ivals[i] = self.cin[i].val
-                
-        elif len(args) == 1 and type(args[0]) is not list:
-            return self.cin[args[0]].val
-            
-        elif len(args) == 1 and type(args[0]) is list:
-            for wire in args[0]:
-                ivals[i] = wire.val
-                
-        else: # Many args
-            for wire in args:
-                ivals[i] = wire.val
-                
-        return ivals
+            return self._mapValues(self.cin)
+                    
+        # Otherwise deep map the values from wires
+        return self._mapValues(args)
     
     def prep(self):
-        if self._prep_is_generator:
+        if self.waiting():
+            self._wait()
+        elif self._prep_is_generator:
             self.next = self._prep.next()
         else:
             self.next = self._prep(self, **self.read())
     
+    def _driveWire(self, key, args):
+        if type(args) is not dict:
+            self.cout[key].drive(args)
+        else:
+            [self._driveWire(k, v) for k, v in args.items()]
+    
     def drive(self):
-        if not self.next:
+        if not self.next or self.waiting():
             return
-    
-        for o in self.cout:
-            self.cout[o].drive(self.next[o])
-    
-    def input(self, t):
-        print t
+        
+        if type(self.next) == types.GeneratorType:
+            self.next = self.next.next()
+        
+        self._driveWire(None, self.next)
     
     def __str__(self):
         return "%s" % self._prep.__name__
@@ -120,15 +144,31 @@ class Simulator():
     def resolve(self, kwargs):
         # Resolves a series of Wire names into
         # their respective objects
-        result = {}
-        for k in kwargs:
-            result[k] = self.wires[kwargs[k]]
-        return result
-    
-    def addWire(self, name):
-        self.wires[name] = Wire(name)
+        
+        if type(kwargs) is str:
+            return self.wires[kwargs]
+        elif type(kwargs) is list:
+            return [self.resolve(v) for v in kwargs]
+        elif type(kwargs) is dict:
+            return {k: self.resolve(v) for k, v in kwargs.items()}
+        else:
+            raise Exception("Weird type " + str(kwargs) + " in sim.resolve()")
+        
+    def addWire(self, args):
+        if type(args) is list:
+            for arg in args:
+                self.addWire(arg)
+        elif type(args) is str:
+            name = args
+            if self.wires.get(name):
+                raise Exception("Simulator wire " + name + " already exists")
+            self.wires[name] = Wire(name)
+        else:
+            raise Exception("Tried to add wire of type " + str(type(args)))
     
     def addComponent(self, name, fn):
+        if self.components.get(name):
+            raise Exception("Simulator component " + name + " already exists")
         cmp = Component(fn)
         self.components[name] = cmp
         self.lastComponent = cmp
@@ -150,6 +190,7 @@ class Simulator():
             self.components[c].drive()
         
     def __str__(self):
+        # TODO: Sort components & wires
         cmpstr = ""
         for c in self.components:
             cmpstr += "- %s (%s)\n" % (c, str(self.components[c]))
@@ -168,15 +209,37 @@ _sim = None
 def init_sim():
     global _sim
     _sim = Simulator()
-init_sim()
     
-
 def net(*args):
     # Creates new Wires with given 
     # names and adds to the global netlist
-    for name in args:
-        _sim.addWire(name)
+    # TODO: Support arbitrary structure
+    for arg in args:
+        _sim.addWire(arg)
 
+def net_set(nets, val):
+    if type(nets) == list:
+        for net in nets:
+            wire = _sim.resolve(net)
+            wire.prep()
+            wire.drive(val)
+            
+    elif type(nets) == str:
+        wire = _sim.resolve(net)
+        wire.prep()
+        wire.drive(val)
+    else:
+        raise Exception("Invalid netlist type " + str(type(nets)))
+
+def net_get(nets):
+    if type(nets) == list:
+        result = list()
+        for net in nets:
+            result.append(_sim.resolve(net).val)
+        return result
+    elif type(nets) == str:
+        return _sim.resolve(nets).val
+        
 def ckt(fn):
     # This decorator allows creating and 
     # registering a new component simply
@@ -200,8 +263,29 @@ def dest(**kwargs):
     # component by specifying their string names
     _sim.lastComponent.cout = _sim.resolve(kwargs)
        
-def step():
-    _sim.step()
+def step(num=1):
+    for i in xrange(num):
+        _sim.step()
        
 def ckt_state():
     return _sim
+
+
+# Operations on input arrays (conversions)
+def assertTTL(val):
+    if val < -0.5 or val > 5.5:
+        raise Exception("Value " + str(val) + " outside of acceptible TTL values!")
+
+def isHI(val):
+    assertTTL(val)
+    return val > 3.7
+    
+def isLO(val):
+    return val < 2.0
+
+def arr2dec(values):
+    result = 0
+    for val in values:
+        result = (result << 1) + isHI(val)
+    return result
+    
