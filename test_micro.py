@@ -3,6 +3,7 @@ from ckt_sim import *
 # --------------------------
 # Define circuit components
 # --------------------------
+from ckt_components import Mux
 
 @ckt
 def Micro(C):
@@ -11,12 +12,7 @@ def Micro(C):
         yield {"nCount": count}
         yield C.Wait(5)
         count = (count + 1) % 8
-        
-@ckt
-def Mux(C, nSelect, vInputs):
-    if nSelect is not None:
-        return {"vOut": vInputs[nSelect]}
-      
+       
 def main():    
     init_sim()  
     # --------------------------

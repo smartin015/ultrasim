@@ -37,10 +37,9 @@ class Wire():
         
         self.val = val
         self.valchange = True
-        print self.val
         
     def __str__(self):
-        if not self.val:
+        if self.val is None:
             return self.name
         else:
             return "%s (%s)" % (self.name, str(self.val))

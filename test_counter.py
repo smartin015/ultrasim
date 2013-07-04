@@ -3,19 +3,7 @@ from ckt_sim import *
 # --------------------------
 # Define circuit components
 # --------------------------
-
-@ckt
-def Counter(C):
-    #Setup phase
-    count = 0
-    
-    #Loop phase.
-    # use yield instead of return here,
-    # but everything else works as normal.
-    while True: 
-        print "Yielding",count
-        yield {"out": count}
-        count = count + 1
+from ckt_components import Counter
 
 def main():
     init_sim()
@@ -42,15 +30,16 @@ def main():
     print ckt_state()
 
     step()
+    assert(net_get("Out") == 0)
     print "After 1 step:"
     print ckt_state()
-    assert(net_get("Out") == 1)
+    
     
     for i in xrange(50):
         step()
     
     assert(net_get("Out") == 50)    
-    print "State after 50 steps:"
+    print "State after 51 steps:"
     print ckt_state()
 
        
@@ -58,7 +47,7 @@ def main():
         step()
 
     assert(net_get("Out") == 200)
-    print "State after 200 steps:"
+    print "State after 201 steps:"
     print ckt_state()
 
 if __name__ == "__main__":
