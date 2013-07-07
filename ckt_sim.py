@@ -47,7 +47,7 @@ class Wire():
 class Component:
     # Components take input Wires, do some atomic calculation,
     # and produce values on the output Wires.
-    # A typical cycle invoels calling prep() to 
+    # A typical cycle involves calling prep() to 
     # calculate from input values, then drive() to 
     # place the result on output Wires.
     
@@ -93,6 +93,8 @@ class Component:
         
         if isinstance(args, Wire):
             return args.val
+        elif type(args) is str:
+            return self._mapValues(self.cin[args])
         elif type(args) is list:
             return [self._mapValues(v) for v in args]
         elif type(args) is dict:
@@ -100,13 +102,16 @@ class Component:
         else:
             raise Exception("Weird type " + str(type(args)) + " in _getValues()")
         
-    def read(self, *args):
+    def read(self, *args):    
         # No args? Just read all inputs.
         if len(args) == 0:
             return self._mapValues(self.cin)
-                    
-        # Otherwise deep map the values from wires
-        return self._mapValues(args)
+        elif len(args) == 1:
+            #If only one argument, get rid of the extra wrapping
+            return self._mapValues(args[0])
+        else:
+            # Otherwise deep map the values from wires
+            return self._mapValues(list(args))
     
     def prep(self):
         if self.waiting():
@@ -224,7 +229,7 @@ def net_set(nets, val):
             wire.drive(val)
             
     elif type(nets) == str:
-        wire = _sim.resolve(net)
+        wire = _sim.resolve(nets)
         wire.prep()
         wire.drive(val)
     else:
