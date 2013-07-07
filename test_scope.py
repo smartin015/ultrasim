@@ -13,11 +13,15 @@ def main():
     net_set("B", 2)
     net_set("C", 7)
     
-    Counter("testcnt")
-    dest(out="A")
+    Counter(
+        "testcnt",
+        dest(out="A")
+    )
     
-    Scope("testscope")
-    src(inputs_dict={"A": "A", "B": "B", "C": "C"})
+    Scope(
+        "testscope",
+        src(inputs_dict={"A": "A", "B": "B", "C": "C"})
+    )
     
     for i in xrange(50):
         sleep(0.1)

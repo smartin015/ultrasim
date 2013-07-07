@@ -38,24 +38,30 @@ def Intelliboard(C):
 def main():
     init_sim()
     breadboard_wires = ["vPin"+str(i) for i in xrange(64)]
-        
     mux_wires = ["vMuxOut"+str(i) for i in xrange(8)]
+    
+    #Initialize the wires
     net("nSelect", breadboard_wires, mux_wires)
     
-    #Assign random bit generators to each wire
+    #Assign random bit generators to each breadboard wire
     for wire in breadboard_wires:
-        RandomBit()
-        dest(vOut=wire)
+        RandomBit(
+            dest(vOut=wire)
+        )
     
     #Use muxes to gather inputs
     for i in xrange(8):
-        Mux("mux"+str(i))
-        src(nSelect="nSelect", vInputs=["vPin"+str(j + 8*i) for j in xrange(8)])
-        dest(vOut = mux_wires[i])
+        Mux(
+            "mux"+str(i),
+            src(nSelect="nSelect", vInputs=["vPin"+str(j + 8*i) for j in xrange(8)]),
+            dest(vOut = mux_wires[i])
+        )
     
-    Intelliboard("ATMEGA88P")
-    src(muxes=mux_wires)
-    dest(nSelect="nSelect")
+    Intelliboard(
+        "ATMEGA88P",
+        src(muxes=mux_wires),
+        dest(nSelect="nSelect")
+    )
     
     while True:
         sleep(0.01)

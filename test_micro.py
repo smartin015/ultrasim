@@ -23,12 +23,14 @@ def main():
     net_set(vIns, LO)
     net_set(["vI2", "vI4"], HI)
 
-    Mux()
-    src(nSelect="nSel", vInputs=vIns)
-    dest(vOut="vOut")
+    Mux(
+        src(nSelect="nSel", vInputs=vIns),
+        dest(vOut="vOut")
+    )
 
-    Micro()
-    dest(nCount="nSel")
+    Micro(
+        dest(nCount="nSel")
+    )
 
     # --------------------------
     # Simulate!

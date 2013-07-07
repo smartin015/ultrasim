@@ -141,7 +141,6 @@ class Component:
             
 class Simulator():
     def __init__(self):
-        self.lastComponent = None
         self.components = {}
         self.wires = {}
     
@@ -175,7 +174,7 @@ class Simulator():
             raise Exception("Simulator component " + name + " already exists")
         cmp = Component(fn)
         self.components[name] = cmp
-        self.lastComponent = cmp
+        return cmp
     
     def step(self):
         # Go through a single prep/drive cycle.
@@ -249,23 +248,45 @@ def ckt(fn):
     # registering a new component simply
     # by typing fn('name')
     
-    def wrapped(name = None):
-        if not name:
-            name = str(len(_sim.components))
-        _sim.addComponent(name, fn)
-        return _sim.components[name]
+    def wrapped(*args):
+        
+        name = str(len(_sim.components))
+        src_kwargs = {}
+        dest_kwargs = {}
+        
+        assert(len(args) <= 3)
+        
+        for arg in args:
+            if type(arg) == str:   
+                name = arg
+            elif type(arg) == dict:
+                if arg.get('src'):
+                    src_kwargs = arg['src']
+                elif arg.get('dest'):
+                    dest_kwargs = arg['dest']
+                else:
+                    raise Exception('Source or destination arguments for component ' + 
+                    name + ' are invalid. Please use src() and dest() functions')
+            else:
+                raise Exception('Invalid argument type for component ' + name +
+                '. Component arguments are (string) name and source/dest lines using src() and dest()')
+        
+        cmp = _sim.addComponent(name, fn)
+        cmp.cin = _sim.resolve(src_kwargs)
+        cmp.cout = _sim.resolve(dest_kwargs)
+        return cmp
     return wrapped
        
 def src(**kwargs):
     # Set input wires for the last created 
     # component by specifying their string names
-    _sim.lastComponent.cin = _sim.resolve(kwargs)
-        
-       
+    return {"src": kwargs}
+    
 def dest(**kwargs):
     # Set output wires for the last created 
     # component by specifying their string names
-    _sim.lastComponent.cout = _sim.resolve(kwargs)
+    return {"dest": kwargs}
+    
        
 def step(num=1):
     for i in xrange(num):

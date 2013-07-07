@@ -19,8 +19,10 @@ def main():
     # Define voltage source.
     # Note how source doesn't need
     # to be specified for the circuit to run.
-    Counter("Counter generator")
-    dest(out="Out")
+    Counter(
+        "Counter generator",
+        dest(out="Out")
+    )
 
 
     # --------------------------

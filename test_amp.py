@@ -24,14 +24,18 @@ def main():
     # Define voltage source.
     # Note how source doesn't need
     # to be specified for the circuit to run.
-    DC5V("DC Source")
-    dest(out="5V")
+    DC5V(
+        "DC Source",
+        dest(out="5V")
+    )
 
     #Define amplifier circuit. 
-    Amp2X("Amplifier O' Doom")
-    src(i1="5V")
-    dest(out="Out")
-
+    Amp2X(
+        "Amplifier O' Doom",
+        src(i1="5V"),
+        dest(out="Out")
+    )
+    
     # --------------------------
     # Simulate!
     # --------------------------
