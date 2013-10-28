@@ -61,7 +61,8 @@ class Component:
                 return None
             return self
             
-    def __init__(self, prep_func):
+    def __init__(self, prep_func, extra_kwargs):
+        self.extra = extra_kwargs
         self._prep = self._prepare_prep_func(prep_func)
         self._prep_is_generator = (type(self._prep) == types.GeneratorType)
         self.cin = {}       # Input wires
@@ -169,10 +170,10 @@ class Simulator():
         else:
             raise Exception("Tried to add wire of type " + str(type(args)))
     
-    def addComponent(self, name, fn):
+    def addComponent(self, name, fn, extra_kwargs):
         if self.components.get(name):
             raise Exception("Simulator component " + name + " already exists")
-        cmp = Component(fn)
+        cmp = Component(fn, extra_kwargs)
         self.components[name] = cmp
         return cmp
     
@@ -253,6 +254,7 @@ def ckt(fn):
         name = str(len(_sim.components))
         src_kwargs = {}
         dest_kwargs = {}
+        extra_kwargs = {}
         
         assert(len(args) <= 3)
         
@@ -264,14 +266,16 @@ def ckt(fn):
                     src_kwargs = arg['src']
                 elif arg.get('dest'):
                     dest_kwargs = arg['dest']
+                elif arg.get('extra'):
+                    extra_kwargs = arg['extra']
                 else:
                     raise Exception('Source or destination arguments for component ' + 
-                    name + ' are invalid. Please use src() and dest() functions')
+                    name + ' are invalid. Please use src(), dest(), and extra() functions')
             else:
                 raise Exception('Invalid argument type for component ' + name +
                 '. Component arguments are (string) name and source/dest lines using src() and dest()')
         
-        cmp = _sim.addComponent(name, fn)
+        cmp = _sim.addComponent(name, fn, extra_kwargs)
         cmp.cin = _sim.resolve(src_kwargs)
         cmp.cout = _sim.resolve(dest_kwargs)
         return cmp
@@ -287,6 +291,9 @@ def dest(**kwargs):
     # component by specifying their string names
     return {"dest": kwargs}
     
+def extra(**kwargs):
+    # Set extra args for the last created component
+    return {"extra": kwargs}
        
 def step(num=1):
     for i in xrange(num):
